@@ -40,7 +40,6 @@ logs/
 *.sqlite3
 
 # Trading data and cache
-data/
 cache/
 backups/
 *.csv
