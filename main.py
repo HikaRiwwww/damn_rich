@@ -2,14 +2,6 @@
 加密货币量化交易机器人 - 主程序
 """
 
-import os
-import sys
-from pathlib import Path
-
-# 添加src目录到Python路径
-src_path = Path(__file__).parent / "src"
-sys.path.insert(0, str(src_path))
-
 from damn_rich.data.market_data import MarketData
 from damn_rich.exchange.binance_client import BinanceClient
 from damn_rich.utils.config import Config
@@ -94,7 +86,7 @@ def main():
         )
 
         if historical_data is not None and not historical_data.empty:
-            print(f"📈 最近10根K线数据:")
+            print("📈 最近10根K线数据:")
             print(historical_data[["open", "high", "low", "close", "volume"]].tail())
         else:
             print("❌ 无法获取历史数据")
@@ -105,7 +97,7 @@ def main():
         market_info = market_data.get_market_info(Config.DEFAULT_SYMBOL)
 
         if market_info:
-            print(f"📊 市场信息:")
+            print("📊 市场信息:")
             print(f"   价格: ${market_info['price']:,.2f}")
             print(f"   买一价: ${market_info['bid']:,.2f}")
             print(f"   卖一价: ${market_info['ask']:,.2f}")
@@ -113,7 +105,7 @@ def main():
             print(f"   24h涨跌: {market_info['percentage']:+.2f}%")
 
         # 获取所有账户余额
-        print(f"\n💳 获取所有账户余额...")
+        print("\n💳 获取所有账户余额...")
         all_balances = binance_client.get_all_balances()
 
         if all_balances:
