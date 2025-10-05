@@ -26,6 +26,9 @@ class Config:
 
     # 日志配置
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_DIR: str = os.getenv("LOG_DIR", "logs")  # 日志目录，相对于项目根目录
+    LOG_MAX_BYTES: int = int(os.getenv("LOG_MAX_BYTES", "10485760"))  # 10MB
+    LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "7"))  # 保留7个备份文件
 
     # 数据库配置
     DB_HOST: str = os.getenv("DB_HOST", "localhost")

@@ -6,11 +6,9 @@
 
 from .base_task import BaseTask, TaskScheduler
 from .kline_sync_task import KlineSyncTask
-from .scheduler_service import SchedulerService
 
 __all__ = [
     "BaseTask",
     "TaskScheduler",
     "KlineSyncTask",
-    "SchedulerService",
 ]
