@@ -39,6 +39,14 @@ class Config:
     BATCH_SIZE: int = int(os.getenv("BATCH_SIZE", "1000"))
     RATE_LIMIT_DELAY: float = float(os.getenv("RATE_LIMIT_DELAY", "0.1"))
 
+    # Redis配置
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
+    REDIS_PREFIX: str = os.getenv("REDIS_PREFIX", "trading_bot:jobs:")
+    USE_REDIS: bool = os.getenv("USE_REDIS", "false").lower() == "true"
+
     @classmethod
     def validate_config(cls) -> bool:
         """
@@ -85,3 +93,23 @@ class Config:
             数据库连接URL
         """
         return f"postgresql://{cls.DB_USER}:{cls.DB_PASSWORD}@{cls.DB_HOST}:{cls.DB_PORT}/{cls.DB_NAME}"
+
+    @classmethod
+    def get_redis_config(cls) -> dict:
+        """
+        获取Redis配置
+
+        Returns:
+            Redis配置字典
+        """
+        config = {
+            "host": cls.REDIS_HOST,
+            "port": cls.REDIS_PORT,
+            "db": cls.REDIS_DB,
+            "prefix": cls.REDIS_PREFIX,
+        }
+
+        if cls.REDIS_PASSWORD:
+            config["password"] = cls.REDIS_PASSWORD
+
+        return config
