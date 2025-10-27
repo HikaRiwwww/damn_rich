@@ -96,9 +96,19 @@ jobs:
           # 调试信息
           echo "EC2_HOST: $EC2_HOST"
           echo "EC2_USER: $EC2_USER"
+          echo "EC2_HOST 长度: ${#EC2_HOST}"
 
           # 测试网络连接
+          echo "测试网络连接..."
           ping -c 3 $EC2_HOST || echo "Ping failed, but continuing..."
+
+          # 测试 DNS 解析
+          echo "测试 DNS 解析..."
+          nslookup $EC2_HOST || echo "DNS lookup failed"
+
+          # 测试端口连接
+          echo "测试端口 22..."
+          timeout 10 bash -c "</dev/tcp/$EC2_HOST/22" && echo "端口 22 可达" || echo "端口 22 不可达"
 
           # 保存SSH密钥
           mkdir -p ~/.ssh
