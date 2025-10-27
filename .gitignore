@@ -60,7 +60,6 @@ nosetests.xml
 coverage.xml
 
 # Package management
-uv.lock
 poetry.lock
 Pipfile.lock
 
