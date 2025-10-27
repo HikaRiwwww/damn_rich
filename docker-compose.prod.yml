@@ -1,8 +1,6 @@
 # 生产环境 Docker Compose 配置
 # 使用方式: docker-compose -f docker-compose.prod.yml up -d
 
-version: "3.8"
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -28,13 +26,13 @@ services:
     image: redis:7-alpine
     container_name: crypto_redis
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - /var/lib/crypto-bot/redis:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
