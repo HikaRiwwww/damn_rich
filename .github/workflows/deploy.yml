@@ -92,13 +92,31 @@ jobs:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           DOCKER_IMAGE_TAG: ${{ env.DOCKER_IMAGE }}:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}
         run: |
+          # 调试信息
+          echo "EC2_HOST: $EC2_HOST"
+          echo "EC2_USER: $EC2_USER"
+
+          # 测试网络连接
+          ping -c 3 $EC2_HOST || echo "Ping failed, but continuing..."
+
           # 保存SSH密钥
           mkdir -p ~/.ssh
           echo "$EC2_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          # 添加主机到known_hosts
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+          # 配置SSH选项
+          cat > ~/.ssh/config << EOF
+          Host deploy-target
+            HostName $EC2_HOST
+            User $EC2_USER
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel ERROR
+          EOF
+
+          # 添加主机到known_hosts（添加错误处理）
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts || echo "SSH keyscan failed, but continuing..."
 
           # 复制部署文件到服务器
           scp -i ~/.ssh/deploy_key \
@@ -106,7 +124,7 @@ jobs:
             $EC2_USER@$EC2_HOST:/home/$EC2_USER/crypto-bot/
 
           # 执行部署命令
-          ssh -i ~/.ssh/deploy_key $EC2_USER@$EC2_HOST << 'ENDSSH'
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'ENDSSH'
             set -e
             
             # 进入项目目录
