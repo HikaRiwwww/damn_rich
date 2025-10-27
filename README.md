@@ -12,6 +12,7 @@
 - 🎯 **模块化设计**: 清晰的代码结构，服务分离架构
 - ⚡ **高性能**: 异步处理，数据库连接池，智能重试机制
 - 📝 **完善日志**: 分级日志系统，滚动存储，服务独立日志
+- 🐳 **容器化部署**: Docker 和 Docker Compose 支持，CI/CD 自动化部署
 
 ### 计划特性 🚧
 
@@ -20,7 +21,6 @@
 - 🎨 **Web 界面**: React/Vue.js 前端管理界面
 - 🔄 **实时通信**: WebSocket 实时数据推送和状态更新
 - 📱 **API 服务**: RESTful API 和 WebSocket 接口
-- 🐳 **容器化**: Docker 部署和编排支持
 
 ## 技术栈
 
@@ -42,22 +42,46 @@
 - **API 框架**: FastAPI - 现代异步 Web 框架
 - **前端框架**: React/Vue.js + TypeScript
 - **实时通信**: WebSocket + Server-Sent Events
-- **容器化**: Docker + Docker Compose
 - **监控**: Prometheus + Grafana (可选)
 
 ## 快速开始
 
-### 1. 环境准备
+### 本地开发环境
+
+#### 方式 1: 使用 Docker Compose（推荐）
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/your-username/damn_rich.git
+cd damn_rich
+
+# 2. 配置环境变量
+cp env.example .env
+# 编辑 .env 文件，配置你的 API 密钥
+
+# 3. 启动所有服务
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+
+# 5. 停止服务
+docker-compose down
+```
+
+#### 方式 2: 本地 Python 环境
+
+##### 1. 环境准备
 
 确保已安装 Python 3.10+和 uv 包管理器。
 
-### 2. 安装依赖
+##### 2. 安装依赖
 
 ```bash
 uv sync
 ```
 
-### 3. 配置环境变量
+##### 3. 配置环境变量
 
 复制环境变量模板文件：
 
@@ -79,7 +103,7 @@ DEFAULT_TIMEFRAME=1h
 MAX_POSITION_SIZE=0.1
 ```
 
-### 4. 配置数据库
+##### 4. 配置数据库
 
 运行命令
 
@@ -101,7 +125,7 @@ cp env.example .env
 # DB_PASSWORD=your_password
 ```
 
-### 5. 运行服务
+##### 5. 运行服务
 
 ```bash
 # 运行数据同步服务
@@ -114,7 +138,7 @@ uv run python main.py trading-bot
 uv run python main.py
 ```
 
-### 6. 服务管理
+##### 6. 服务管理
 
 ```bash
 # 启动数据同步服务 (后台运行)
@@ -128,6 +152,34 @@ ps aux | grep python
 
 # 停止服务
 pkill -f "python main.py"
+```
+
+### 生产环境部署
+
+详细的部署文档请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+
+#### 快速部署到 AWS EC2
+
+```bash
+# 1. 在 EC2 服务器上运行初始化脚本
+curl -O https://raw.githubusercontent.com/your-username/damn_rich/main/deploy/setup-server.sh
+chmod +x setup-server.sh
+./setup-server.sh
+
+# 2. 配置 GitHub Secrets 并推送代码
+git push origin main
+
+# 3. GitHub Actions 会自动构建和部署
+```
+
+#### 手动部署
+
+```bash
+# 在 EC2 服务器上
+cd ~/crypto-bot
+curl -O https://raw.githubusercontent.com/your-username/damn_rich/main/deploy/deploy.sh
+chmod +x deploy.sh
+./deploy.sh latest
 ```
 
 ## 项目结构
@@ -292,6 +344,9 @@ damn_rich/
 - [x] **日志系统**: 分级日志和滚动存储
 - [x] **服务分离**: 数据同步和交易执行服务分离
 - [x] **环境配置**: 完整的配置管理系统
+- [x] **容器化部署**: Docker 和 Docker Compose 配置
+- [x] **CI/CD**: GitHub Actions 自动化部署流程
+- [x] **部署脚本**: 服务器初始化和部署管理脚本
 
 ### 核心功能开发 🚧
 
@@ -336,10 +391,11 @@ damn_rich/
   - [ ] 迁移脚本系统
   - [ ] 版本控制机制
   - [ ] 数据备份恢复
-- [ ] **容器化部署**: Docker 和编排
-  - [ ] 多阶段构建优化
-  - [ ] Docker Compose 编排
-  - [ ] 生产环境配置
+- [x] **容器化部署**: Docker 和编排
+  - [x] 多阶段构建优化
+  - [x] Docker Compose 编排
+  - [x] 生产环境配置
+  - [x] GitHub Actions CI/CD
 - [ ] **监控告警**: 系统健康监控
   - [ ] 性能指标收集
   - [ ] 异常告警机制
