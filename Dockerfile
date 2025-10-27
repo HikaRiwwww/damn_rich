@@ -8,7 +8,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 # 复制项目配置文件
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
+COPY uv.lock ./
 
 # 使用uv安装依赖到虚拟环境
 RUN uv sync --frozen --no-dev

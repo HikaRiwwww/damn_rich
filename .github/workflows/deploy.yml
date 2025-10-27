@@ -24,6 +24,17 @@ jobs:
       - name: Checkout代码
         uses: actions/checkout@v4
 
+      - name: 检查构建文件
+        run: |
+          echo "检查项目文件..."
+          ls -la
+          echo "检查 pyproject.toml..."
+          ls -la pyproject.toml
+          echo "检查 uv.lock..."
+          ls -la uv.lock
+          echo "检查 Dockerfile..."
+          ls -la Dockerfile
+
       - name: 设置Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -52,8 +63,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # 临时禁用缓存来排查问题
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
 
   # 部署到AWS EC2
   deploy:
