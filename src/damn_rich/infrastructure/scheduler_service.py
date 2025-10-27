@@ -49,6 +49,8 @@ class SchedulerService:
         if self.use_redis:
             # 使用Redis作为任务存储（支持分布式和持久化）
             redis_config = Config.get_redis_config()
+            # RedisJobStore 不支持 prefix 参数，需要移除
+            redis_config.pop("prefix", None)
             self.job_stores = {"default": RedisJobStore(**redis_config)}
         else:
             # 使用内存存储（适合单机部署）
