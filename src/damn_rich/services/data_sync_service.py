@@ -16,6 +16,26 @@ from damn_rich.utils.config import Config
 from damn_rich.utils.logger import get_logger
 
 
+def kline_sync_job(database_manager):
+    """
+    K线数据同步任务函数
+
+    Args:
+        database_manager: 数据库管理器
+    """
+    import asyncio
+    import concurrent.futures
+
+    async def _sync():
+        task = KlineSyncTask(database_manager)
+        return await task.execute()
+
+    # 使用线程池执行异步函数，避免事件循环冲突
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(asyncio.run, _sync())
+        return future.result()
+
+
 class DataSyncService:
     """数据同步服务"""
 
@@ -68,23 +88,11 @@ class DataSyncService:
                     return False
 
                 # 添加K线数据同步任务（每4小时执行一次）
-                def sync_job():
-                    import asyncio
-                    import concurrent.futures
-
-                    async def _sync():
-                        task = KlineSyncTask(self.database_manager)
-                        return await task.execute()
-
-                    # 使用线程池执行异步函数，避免事件循环冲突
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(asyncio.run, _sync())
-                        return future.result()
-
                 self.scheduler_service.add_interval_job(
-                    func=sync_job,
+                    func="damn_rich.services.data_sync_service:kline_sync_job",
                     job_id="kline_sync",
                     hours=4,
+                    args=[self.database_manager],
                 )
 
                 # 立即执行一次K线同步任务
