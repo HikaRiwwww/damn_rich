@@ -91,6 +91,8 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKER_IMAGE_TAG: ${{ env.DOCKER_IMAGE }}:${{ github.ref == 'refs/heads/main' && 'latest' || github.ref_name }}
         run: |
           # 调试信息
@@ -136,12 +138,13 @@ jobs:
 
           # 复制部署文件到服务器
           echo "📁 复制 docker-compose.prod.yml 到服务器..."
+          PROJECT_DIR="/home/$EC2_USER/crypto-bot"
           scp -i ~/.ssh/deploy_key \
             docker-compose.prod.yml \
-            $EC2_USER@$EC2_HOST:/home/$EC2_USER/crypto-bot/ || {
+            $EC2_USER@$EC2_HOST:$PROJECT_DIR/ || {
             echo "❌ SCP 复制失败，尝试检查目录权限..."
             ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
-              "ls -la /home/$EC2_USER/ && ls -la /home/$EC2_USER/crypto-bot/ || echo '目录不存在'"
+              "ls -la $PROJECT_DIR || echo '目录不存在'"
             exit 1
           }
 
@@ -149,13 +152,18 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
             set -e
             
+            # 设置环境变量
+            export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+            export DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN"
+            export DOCKER_IMAGE_TAG="$DOCKER_IMAGE_TAG"
+            
             echo "🚀 开始部署..."
-            echo "📦 镜像标签: $DOCKER_IMAGE_TAG"
+            echo "📦 镜像标签: \$DOCKER_IMAGE_TAG"
             echo "👤 当前用户: \$(whoami)"
             echo "📁 当前目录: \$(pwd)"
             
             # 进入项目目录
-            cd /home/$EC2_USER/crypto-bot || { echo "❌ 项目目录不存在"; exit 1; }
+            cd /home/\${USER}/crypto-bot || { echo "❌ 项目目录不存在"; exit 1; }
             
             # 检查 docker-compose.prod.yml 是否存在
             if [ ! -f "docker-compose.prod.yml" ]; then
@@ -171,17 +179,21 @@ jobs:
               echo "   BINANCE_SECRET_KEY=your_secret_key"
               echo "   DB_PASSWORD=your_db_password"
               echo "   REDIS_PASSWORD=your_redis_password"
-              echo "   DOCKER_IMAGE=$DOCKER_IMAGE_TAG"
+              echo "   DOCKER_IMAGE=\$DOCKER_IMAGE_TAG"
               exit 1
             fi
             
+            # 登录 Docker Hub（拉取私有镜像需要）
+            echo "🔐 登录 Docker Hub..."
+            echo "\$DOCKERHUB_TOKEN" | docker login -u "\$DOCKERHUB_USERNAME" --password-stdin || { echo "❌ Docker Hub 登录失败"; exit 1; }
+            
             # 拉取最新镜像
             echo "📥 拉取 Docker 镜像..."
-            docker pull $DOCKER_IMAGE_TAG || { echo "❌ 镜像拉取失败"; exit 1; }
+            docker pull \$DOCKER_IMAGE_TAG || { echo "❌ 镜像拉取失败"; exit 1; }
             
             # 使用docker-compose更新服务
             echo "🔄 更新服务..."
-            export DOCKER_IMAGE=$DOCKER_IMAGE_TAG
+            export DOCKER_IMAGE=\$DOCKER_IMAGE_TAG
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans || { echo "❌ 服务启动失败"; exit 1; }
             
             # 等待服务启动
