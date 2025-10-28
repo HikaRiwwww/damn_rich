@@ -16,17 +16,18 @@ from damn_rich.utils.config import Config
 from damn_rich.utils.logger import get_logger
 
 
-def kline_sync_job(database_manager):
+def create_and_run_kline_sync():
     """
-    K线数据同步任务函数
-
-    Args:
-        database_manager: 数据库管理器
+    创建并运行 K线同步任务（用于 Redis 模式）
+    从配置中创建数据库管理器并执行任务
     """
     import asyncio
     import concurrent.futures
 
     async def _sync():
+        from damn_rich.utils.config import Config
+
+        database_manager = DatabaseManager(Config.get_database_url())
         task = KlineSyncTask(database_manager)
         return await task.execute()
 
@@ -58,9 +59,9 @@ class DataSyncService:
             self.database_manager = DatabaseManager(Config.get_database_url())
             self.database_manager.create_tables()
 
-            # 初始化调度服务
+            # 初始化调度服务（强制使用 Redis）
             self.scheduler_service = SchedulerService(
-                database_manager=self.database_manager, use_redis=Config.USE_REDIS
+                database_manager=self.database_manager
             )
 
             self.logger.info("数据同步服务组件初始化完成")
@@ -89,10 +90,9 @@ class DataSyncService:
 
                 # 添加K线数据同步任务（每4小时执行一次）
                 self.scheduler_service.add_interval_job(
-                    func="damn_rich.services.data_sync_service:kline_sync_job",
+                    func="damn_rich.services.data_sync_service:create_and_run_kline_sync",
                     job_id="kline_sync",
                     hours=4,
-                    args=[self.database_manager],
                 )
 
                 # 立即执行一次K线同步任务

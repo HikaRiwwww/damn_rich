@@ -19,16 +19,14 @@ from damn_rich.utils.config import Config
 class SchedulerService:
     """基于APScheduler的调度服务"""
 
-    def __init__(self, database_manager: DatabaseManager, use_redis: bool):
+    def __init__(self, database_manager: DatabaseManager):
         """
         初始化调度服务
 
         Args:
             database_manager: 数据库管理器
-            use_redis: 是否使用Redis作为任务存储，None时从环境变量读取
         """
         self.database_manager = database_manager
-        self.use_redis = use_redis
         self.logger = logging.getLogger("scheduler_service")
         self.scheduler: Optional[BackgroundScheduler] = None
         self.job_stores = {}
@@ -45,16 +43,12 @@ class SchedulerService:
         self._configure_job_defaults()
 
     def _configure_job_stores(self):
-        """配置任务存储"""
-        if self.use_redis:
-            # 使用Redis作为任务存储（支持分布式和持久化）
-            redis_config = Config.get_redis_config()
-            # RedisJobStore 不支持 prefix 参数，需要移除
-            redis_config.pop("prefix", None)
-            self.job_stores = {"default": RedisJobStore(**redis_config)}
-        else:
-            # 使用内存存储（适合单机部署）
-            self.job_stores = {"default": {"type": "memory"}}
+        """配置任务存储（强制使用 Redis）"""
+        # 使用Redis作为任务存储（支持分布式和持久化）
+        redis_config = Config.get_redis_config()
+        # RedisJobStore 不支持 prefix 参数，需要移除
+        redis_config.pop("prefix", None)
+        self.job_stores = {"default": RedisJobStore(**redis_config)}
 
     def _configure_executors(self):
         """配置执行器"""
