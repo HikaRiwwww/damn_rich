@@ -5,7 +5,7 @@ K线数据同步任务
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 from sqlalchemy import and_
@@ -13,6 +13,9 @@ from sqlalchemy import and_
 from damn_rich.data.historical_fetcher import HistoricalDataFetcher
 from damn_rich.database.models import DatabaseManager, Exchange, KlineData, Symbol
 from damn_rich.task.base_task import BaseTask
+
+# 北京时间时区（UTC+8）
+BEIJING_TZ = timezone(timedelta(hours=8))
 
 
 class KlineSyncTask(BaseTask):
@@ -195,7 +198,9 @@ class KlineSyncTask(BaseTask):
                 )
 
                 if oldest_data:
-                    time_diff = datetime.now() - oldest_data.datetime
+                    # 数据库存储的是北京时间，使用北京时间进行比较
+                    current_time_beijing = datetime.now(BEIJING_TZ)
+                    time_diff = current_time_beijing - oldest_data.datetime
                     if time_diff.days >= 365:
                         self.logger.info(f"历史数据时间跨度足够: {time_diff.days} 天")
                         return True
@@ -248,17 +253,18 @@ class KlineSyncTask(BaseTask):
         """
         try:
             # 计算过去一年的时间范围
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=365)
+            # 币安API需要UTC时间，先获取UTC时间
+            end_date_utc = datetime.now(timezone.utc)
+            start_date_utc = end_date_utc - timedelta(days=365)
 
-            self.logger.info(f"全量更新 {symbol.symbol}: {start_date} 到 {end_date}")
+            self.logger.info(f"全量更新 {symbol.symbol}: {start_date_utc.isoformat()} 到 {end_date_utc.isoformat()}")
 
-            # 获取历史数据
+            # 获取历史数据（币安需要UTC时间）
             kline_data = self.fetcher.fetch_binance_ohlcv(
                 symbol=symbol.symbol,
                 timeframe="4h",
-                start_date=start_date.isoformat(),
-                end_date=end_date.isoformat() if end_date else None,
+                start_date=start_date_utc.isoformat(),
+                end_date=end_date_utc.isoformat() if end_date_utc else None,
                 limit=500,
             )
 
@@ -288,22 +294,25 @@ class KlineSyncTask(BaseTask):
         try:
             self.logger.info(f"快速历史数据更新 {symbol.symbol}: 高频请求获取历史数据")
 
-            # 获取当前数据库中最老的数据时间
-            oldest_time = await self._get_oldest_data_time(symbol.id)
+            # 获取当前数据库中最老的数据时间（数据库中存储的是北京时间）
+            oldest_time_beijing = await self._get_oldest_data_time(symbol.id)
 
-            # 如果没有历史数据，从一年前开始
-            if not oldest_time:
-                oldest_time = datetime.now() - timedelta(days=365)
-
-            # 计算需要获取的时间范围
-            current_time = datetime.now()
-            time_diff = current_time - oldest_time
+            # 如果没有历史数据，从一年前开始（使用UTC时间，因为要传给币安API）
+            if not oldest_time_beijing:
+                oldest_time_utc = datetime.now(timezone.utc) - timedelta(days=365)
+            else:
+                # 转换北京时间到UTC（数据库存储的北京时间转为UTC）
+                oldest_time_utc = oldest_time_beijing.replace(tzinfo=BEIJING_TZ).astimezone(timezone.utc)
+            
+            # 计算需要获取的时间范围（使用UTC时间）
+            current_time_utc = datetime.now(timezone.utc)
+            time_diff = current_time_utc - oldest_time_utc
 
             self.logger.info(f"需要获取 {time_diff.days} 天的历史数据")
 
-            # 分批次高频获取数据
+            # 分批次高频获取数据（使用UTC时间）
             success = await self._batch_fetch_historical_data(
-                symbol, oldest_time, current_time
+                symbol, oldest_time_utc, current_time_utc
             )
 
             return success
@@ -393,9 +402,11 @@ class KlineSyncTask(BaseTask):
 
                     # 更新下一批次的开始时间：从最后一条数据的时间继续
                     last_timestamp = batch_data[-1][0]
-                    current_start = datetime.fromtimestamp(
-                        last_timestamp / 1000
-                    ) + timedelta(hours=4)
+                    # 币安返回的是 UTC 时间戳，继续使用 UTC 时间进行下次查询
+                    last_datetime_utc = datetime.fromtimestamp(
+                        last_timestamp / 1000, tz=timezone.utc
+                    )
+                    current_start = last_datetime_utc + timedelta(hours=4)
 
                     batch_count += 1
                     retry_count = 0  # 成功获取数据后重置重试计数
@@ -507,18 +518,22 @@ class KlineSyncTask(BaseTask):
             List[Tuple]: 处理后的K线数据
         """
         processed_data = []
-        current_time = datetime.now()
 
         for kline in kline_data:
             try:
                 # 解析K线数据 [timestamp, open, high, low, close, volume]
                 timestamp_ms = int(kline[0])
-                datetime_obj = datetime.fromtimestamp(timestamp_ms / 1000)
+                # 币安返回的是 UTC 时间戳，先获取 UTC 时间用于比较
+                datetime_utc = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
 
                 # 过滤进行中的K线（最后一根K线可能还在进行中）
                 # 4小时K线在收盘后才会定型，这里保留最后一根用于增量更新
-                if datetime_obj >= current_time:
+                current_time_utc = datetime.now(timezone.utc)
+                if datetime_utc >= current_time_utc:
                     continue
+                
+                # 转换为北京时间（UTC+8）用于存储
+                datetime_obj = datetime_utc.astimezone(BEIJING_TZ)
 
                 # 验证数据完整性
                 if len(kline) < 6:
