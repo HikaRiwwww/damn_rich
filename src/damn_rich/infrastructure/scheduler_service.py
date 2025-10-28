@@ -222,20 +222,25 @@ class SchedulerService:
             self.logger.error(f"获取所有任务信息失败: {e}")
             return []
 
-    def add_interval_job(self, func, job_id: str, **interval_kwargs) -> bool:
+    def add_interval_job(self, func, job_id: str, **kwargs) -> bool:
         """
         添加间隔任务
 
         Args:
             func: 要执行的函数
             job_id: 任务ID
-            **interval_kwargs: 间隔参数 (seconds, minutes, hours, days, weeks)
+            **kwargs: 其他参数，包括间隔参数 (seconds, minutes, hours, days, weeks) 和 args, kwargs
 
         Returns:
             bool: 是否添加成功
         """
-        trigger = IntervalTrigger(**interval_kwargs)
-        return self.add_job(func, job_id, trigger)
+        # 提取间隔参数
+        interval_params = ["seconds", "minutes", "hours", "days", "weeks"]
+        trigger_kwargs = {k: v for k, v in kwargs.items() if k in interval_params}
+        job_kwargs = {k: v for k, v in kwargs.items() if k not in interval_params}
+
+        trigger = IntervalTrigger(**trigger_kwargs)
+        return self.add_job(func, job_id, trigger, **job_kwargs)
 
     def add_cron_job(self, func, job_id: str, **cron_kwargs) -> bool:
         """
