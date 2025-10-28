@@ -39,6 +39,9 @@ class HistoricalDataFetcher:
             exchange_config = {
                 "sandbox": self.sandbox,
                 "enableRateLimit": True,
+                'options': {
+                    'defaultType': 'spot',
+                }
                 # 移除 rateLimit 参数，和测试脚本保持一致
             }
 
