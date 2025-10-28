@@ -40,7 +40,7 @@ services:
       - crypto_net
 
   data-sync:
-    image: ${DOCKER_IMAGE}
+    image: ${DOCKER_IMAGE:-damn-rich/crypto-bot:latest}
     container_name: crypto_data_sync
     restart: always
     command: ["python", "main.py", "data-sync"]
@@ -68,7 +68,7 @@ services:
       - crypto_net
 
   trading-bot:
-    image: ${DOCKER_IMAGE}
+    image: ${DOCKER_IMAGE:-damn-rich/crypto-bot:latest}
     container_name: crypto_trading_bot
     restart: always
     command: ["python", "main.py", "trading-bot"]
