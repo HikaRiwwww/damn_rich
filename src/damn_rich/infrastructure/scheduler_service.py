@@ -274,9 +274,15 @@ class SchedulerService:
 
             job = self.scheduler.get_job(job_id)
             if job:
-                # 直接执行任务函数
+                # 直接执行任务函数，传入任务参数
                 try:
-                    job.func()
+                    # 获取任务函数和参数
+                    func = job.func
+                    args = job.args if hasattr(job, "args") else []
+                    kwargs = job.kwargs if hasattr(job, "kwargs") else {}
+
+                    # 执行任务
+                    func(*args, **kwargs)
                     return True
                 except Exception as e:
                     self.logger.error(f"任务执行失败: {job_id}, 错误: {e}")

@@ -5,7 +5,6 @@
 """
 
 import asyncio
-import logging
 import signal
 from typing import Optional
 
@@ -16,19 +15,23 @@ from damn_rich.utils.config import Config
 from damn_rich.utils.logger import get_logger
 
 
-def kline_sync_job(database_manager):
+def kline_sync_job():
     """
     K线数据同步任务函数
-
-    Args:
-        database_manager: 数据库管理器
+    注意：这是一个独立的函数，在任务执行时创建数据库连接
     """
     import asyncio
     import concurrent.futures
 
     async def _sync():
+        # 在任务内部创建数据库管理器，避免序列化问题
+        database_manager = DatabaseManager(Config.get_database_url())
         task = KlineSyncTask(database_manager)
-        return await task.execute()
+        try:
+            return await task.execute()
+        finally:
+            # 确保关闭数据库连接
+            database_manager.close()
 
     # 使用线程池执行异步函数，避免事件循环冲突
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -88,11 +91,11 @@ class DataSyncService:
                     return False
 
                 # 添加K线数据同步任务（每4小时执行一次）
+                # 注意：不传递 database_manager，因为无法序列化
                 self.scheduler_service.add_interval_job(
                     func="damn_rich.services.data_sync_service:kline_sync_job",
                     job_id="kline_sync",
                     hours=4,
-                    args=[self.database_manager],
                 )
 
                 # 立即执行一次K线同步任务
@@ -140,22 +143,9 @@ class DataSyncService:
                 # 添加K线同步任务（如果不存在）
                 jobs = self.scheduler_service.get_all_jobs()
                 if not any(job["id"] == "kline_sync" for job in jobs):
-                    # 创建一个包装函数，避免闭包问题
-                    def sync_job():
-                        import asyncio
-                        import concurrent.futures
-
-                        async def _sync():
-                            task = KlineSyncTask(self.database_manager)
-                            return await task.execute()
-
-                        # 使用线程池执行异步函数，避免事件循环冲突
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(asyncio.run, _sync())
-                            return future.result()
-
+                    # 使用字符串引用，任务函数内部会创建数据库连接
                     self.scheduler_service.add_interval_job(
-                        func=sync_job,
+                        func="damn_rich.services.data_sync_service:kline_sync_job",
                         job_id="kline_sync",
                         hours=4,
                     )
