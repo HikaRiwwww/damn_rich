@@ -22,13 +22,22 @@ def kline_sync_job():
     """
     import asyncio
     import concurrent.futures
+    import logging
+
+    logger = logging.getLogger("kline_sync_job")
+    logger.info("🔄 K线同步任务开始执行...")
 
     async def _sync():
         # 在任务内部创建数据库管理器，避免序列化问题
         database_manager = DatabaseManager(Config.get_database_url())
         task = KlineSyncTask(database_manager)
         try:
-            return await task.execute()
+            result = await task.execute()
+            logger.info(f"✅ K线同步任务执行完成: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"❌ K线同步任务执行失败: {e}")
+            raise
         finally:
             # 确保关闭数据库连接
             database_manager.close()
@@ -90,16 +99,25 @@ class DataSyncService:
                 if not self.scheduler_service.start():
                     return False
 
-                # 添加K线数据同步任务（每4小时执行一次）
-                # 注意：不传递 database_manager，因为无法序列化
-                self.scheduler_service.add_interval_job(
-                    func="damn_rich.services.data_sync_service:create_and_run_kline_sync",
+                # 添加K线数据同步任务（每4h同步一次）
+                if self.scheduler_service.add_interval_job(
+                    func="damn_rich.services.data_sync_service:kline_sync_job",
                     job_id="kline_sync",
                     hours=4,
-                )
+                ):
+                    self.logger.info("✅ K线同步任务已添加（每4h同步一次）")
 
-                # 立即执行一次K线同步任务
-                self.scheduler_service.run_job_now("kline_sync")
+                    # 等待一下，让任务完全注册
+                    import time
+                    time.sleep(1)
+
+                    # 立即执行一次K线同步任务
+                    if self.scheduler_service.run_job_now("kline_sync"):
+                        self.logger.info("✅ 立即执行一次K线同步任务成功")
+                    else:
+                        self.logger.warning("⚠️ 立即执行K线同步任务失败")
+                else:
+                    self.logger.error("❌ 添加K线同步任务失败")
 
             self.logger.info("✅ 数据同步服务启动成功")
             return True

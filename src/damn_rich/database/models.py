@@ -169,7 +169,6 @@ class DatabaseManager:
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
-            print("数据库连接初始化成功")
         except Exception as e:
             print(f"数据库连接初始化失败: {e}")
             raise
@@ -191,4 +190,3 @@ class DatabaseManager:
         """关闭数据库连接"""
         if self.engine:
             self.engine.dispose()
-            print("数据库连接已关闭")

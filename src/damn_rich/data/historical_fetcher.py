@@ -53,9 +53,8 @@ class HistoricalDataFetcher:
                         "secret": Config.BINANCE_SECRET_KEY,
                     }
                 )
-                print(f"{self.exchange_name} 交易所连接初始化成功 (使用API密钥)")
-            else:
-                print(f"{self.exchange_name} 交易所连接初始化成功 (公共API)")
+
+            print(f"成功连接{self.exchange_name} 交易所")
 
             exchange = exchange_class(exchange_config)
             return exchange
