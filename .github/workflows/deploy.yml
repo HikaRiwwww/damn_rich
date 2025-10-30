@@ -82,7 +82,7 @@ jobs:
       - name: 构建并推送前端镜像
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: .
           file: ./frontend/Dockerfile
           push: true
           tags: ${{ steps.meta_frontend.outputs.tags }}
