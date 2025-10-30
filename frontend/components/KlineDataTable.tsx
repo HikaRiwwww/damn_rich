@@ -29,11 +29,26 @@ interface Symbol {
   max_order_size?: number;
 }
 
+interface TimezoneOption {
+  value: string;
+  label: string;
+  offset: number;
+}
+
+const TIMEZONES: TimezoneOption[] = [
+  { value: 'UTC+8', label: '北京时间 (UTC+8)', offset: 8 },
+  { value: 'UTC+0', label: 'UTC (UTC+0)', offset: 0 },
+  { value: 'UTC-5', label: '美东时间 (UTC-5)', offset: -5 },
+  { value: 'UTC+1', label: '中欧时间 (UTC+1)', offset: 1 },
+  { value: 'UTC+9', label: '日本时间 (UTC+9)', offset: 9 },
+];
+
 export default function KlineDataTable() {
   const [symbols, setSymbols] = useState<Symbol[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<number | null>(null);
   const [klineData, setKlineData] = useState<KlineData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedTimezone, setSelectedTimezone] = useState<string>('UTC+8');
 
   // 获取交易对列表
   useEffect(() => {
@@ -80,23 +95,67 @@ export default function KlineDataTable() {
     }
   }, [selectedSymbol]);
 
+  // 格式化时间函数
+  const formatDateTime = (dateString: string, timezone: string): string => {
+    try {
+      const timezoneOption = TIMEZONES.find(tz => tz.value === timezone);
+      if (!timezoneOption) return dateString;
+
+      // 解析 UTC 时间
+      const utcDate = new Date(dateString);
+      if (isNaN(utcDate.getTime())) return dateString;
+
+      // 转换为目标时区
+      const offsetMs = timezoneOption.offset * 60 * 60 * 1000;
+      const targetDate = new Date(utcDate.getTime() + offsetMs);
+
+      // 格式化为 YYYY-MM-DD HH:mm:ss
+      const year = targetDate.getUTCFullYear();
+      const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getUTCDate()).padStart(2, '0');
+      const hours = String(targetDate.getUTCHours()).padStart(2, '0');
+      const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(targetDate.getUTCSeconds()).padStart(2, '0');
+
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   return (
     <div>
-      {/* 交易对选择 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px' }}>选择交易对:</label>
-        <select
-          value={selectedSymbol || ''}
-          onChange={(e) => setSelectedSymbol(Number(e.target.value))}
-          style={{ padding: '5px 10px' }}
-        >
-          <option value="">请选择</option>
-          {symbols.map((symbol) => (
-            <option key={symbol.id} value={symbol.id}>
-              {symbol.symbol}
-            </option>
-          ))}
-        </select>
+      {/* 交易对选择和时区选择 */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div>
+          <label style={{ marginRight: '10px' }}>选择交易对:</label>
+          <select
+            value={selectedSymbol || ''}
+            onChange={(e) => setSelectedSymbol(Number(e.target.value))}
+            style={{ padding: '5px 10px' }}
+          >
+            <option value="">请选择</option>
+            {symbols.map((symbol) => (
+              <option key={symbol.id} value={symbol.id}>
+                {symbol.symbol}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ marginRight: '10px' }}>时区:</label>
+          <select
+            value={selectedTimezone}
+            onChange={(e) => setSelectedTimezone(e.target.value)}
+            style={{ padding: '5px 10px' }}
+          >
+            {TIMEZONES.map((tz) => (
+              <option key={tz.value} value={tz.value}>
+                {tz.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* K 线数据表格 */}
@@ -125,7 +184,7 @@ export default function KlineDataTable() {
               {klineData.map((kline) => (
                 <tr key={kline.id}>
                   <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                    {kline.datetime}
+                    {formatDateTime(kline.datetime, selectedTimezone)}
                   </td>
                   <td style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>
                     {kline.open?.toFixed(2)}
