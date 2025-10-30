@@ -46,8 +46,13 @@ logs/
 cache/
 backups/
 *.csv
-*.json
 trading_logs/
+# Keep JSON config files
+!package.json
+!package-lock.json
+!tsconfig.json
+!composer.json
+!*.config.json
 
 # Jupyter Notebook
 .ipynb_checkpoints/
