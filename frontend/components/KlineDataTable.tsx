@@ -95,19 +95,16 @@ export default function KlineDataTable() {
     }
   }, [selectedSymbol]);
 
-  // 格式化时间函数
-  const formatDateTime = (dateString: string, timezone: string): string => {
+  // 从时间戳格式化时间函数
+  const formatDateTimeFromTimestamp = (timestamp: number, timezone: string): string => {
     try {
       const timezoneOption = TIMEZONES.find(tz => tz.value === timezone);
-      if (!timezoneOption) return dateString;
+      if (!timezoneOption) return new Date(timestamp).toISOString();
 
-      // 解析 UTC 时间
-      const utcDate = new Date(dateString);
-      if (isNaN(utcDate.getTime())) return dateString;
-
-      // 转换为目标时区
+      // 时间戳是毫秒，转换为目标时区（加上偏移量）
       const offsetMs = timezoneOption.offset * 60 * 60 * 1000;
-      const targetDate = new Date(utcDate.getTime() + offsetMs);
+      const targetTimestamp = timestamp + offsetMs;
+      const targetDate = new Date(targetTimestamp);
 
       // 格式化为 YYYY-MM-DD HH:mm:ss
       const year = targetDate.getUTCFullYear();
@@ -119,7 +116,7 @@ export default function KlineDataTable() {
 
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (error) {
-      return dateString;
+      return new Date(timestamp).toISOString();
     }
   };
 
@@ -184,7 +181,7 @@ export default function KlineDataTable() {
               {klineData.map((kline) => (
                 <tr key={kline.id}>
                   <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                    {formatDateTime(kline.datetime, selectedTimezone)}
+                    {formatDateTimeFromTimestamp(kline.timestamp, selectedTimezone)}
                   </td>
                   <td style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>
                     {kline.open?.toFixed(2)}
