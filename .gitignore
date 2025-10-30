@@ -31,6 +31,9 @@ secrets/
 *~
 .DS_Store
 Thumbs.db
+# Keep launch.json and workspace settings
+!.vscode/launch.json
+!.vscode/extensions.json
 
 # Logs and databases
 *.log
