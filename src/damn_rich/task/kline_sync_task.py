@@ -558,11 +558,11 @@ class KlineSyncTask(BaseTask):
                 ):
                     continue
 
-                # 添加额外字段（如果有的话）
-                quote_volume = float(kline[6]) if len(kline) > 6 else None
-                trades_count = int(kline[7]) if len(kline) > 7 else None
-                taker_buy_base_volume = float(kline[8]) if len(kline) > 8 else None
-                taker_buy_quote_volume = float(kline[9]) if len(kline) > 9 else None
+                # 暂不处理扩展字段（保持为 None）
+                quote_volume = None
+                trades_count = None
+                taker_buy_base_volume = None
+                taker_buy_quote_volume = None
 
                 processed_data.append(
                     (

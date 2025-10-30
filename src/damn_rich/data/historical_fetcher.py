@@ -39,9 +39,9 @@ class HistoricalDataFetcher:
             exchange_config = {
                 "sandbox": self.sandbox,
                 "enableRateLimit": True,
-                'options': {
-                    'defaultType': 'spot',
-                }
+                "options": {
+                    "defaultType": "spot",
+                },
                 # 移除 rateLimit 参数，和测试脚本保持一致
             }
 
@@ -122,7 +122,30 @@ class HistoricalDataFetcher:
             if since > end_ts:
                 break
 
-        return all_ohlcv
+        # 扩展数据格式，添加缺失的字段
+        extended_ohlcv = []
+        for kline in all_ohlcv:
+            # 基础格式: [timestamp, open, high, low, close, volume]
+            # 扩展格式: [timestamp, open, high, low, close, volume, quote_volume, trades_count, taker_buy_base_volume, taker_buy_quote_volume]
+            extended_kline = kline[:6]  # 取前6个字段
+
+            # 计算 quote_volume (成交额 = close * volume)
+            if len(extended_kline) >= 6:
+                close_price = float(extended_kline[4])
+                volume = float(extended_kline[5])
+                quote_volume = close_price * volume
+                extended_kline.append(quote_volume)
+            else:
+                extended_kline.append(None)
+
+            # 添加其他字段的占位符（币安API不提供这些数据）
+            extended_kline.extend(
+                [None, None, None]
+            )  # trades_count, taker_buy_base_volume, taker_buy_quote_volume
+
+            extended_ohlcv.append(extended_kline)
+
+        return extended_ohlcv
 
     def _get_max_limit_for_timeframe(self, timeframe: str) -> int:
         """
@@ -174,8 +197,31 @@ class HistoricalDataFetcher:
                 symbol=symbol, timeframe=timeframe, limit=limit
             )
 
-            print(f"抓取到 {len(ohlcv)} 条最新数据")
-            return ohlcv
+            # 扩展数据格式，添加缺失的字段
+            extended_ohlcv = []
+            for kline in ohlcv:
+                # 基础格式: [timestamp, open, high, low, close, volume]
+                # 扩展格式: [timestamp, open, high, low, close, volume, quote_volume, trades_count, taker_buy_base_volume, taker_buy_quote_volume]
+                extended_kline = kline[:6]  # 取前6个字段
+
+                # 计算 quote_volume (成交额 = close * volume)
+                if len(extended_kline) >= 6:
+                    close_price = float(extended_kline[4])
+                    volume = float(extended_kline[5])
+                    quote_volume = close_price * volume
+                    extended_kline.append(quote_volume)
+                else:
+                    extended_kline.append(None)
+
+                # 添加其他字段的占位符（币安API不提供这些数据）
+                extended_kline.extend(
+                    [None, None, None]
+                )  # trades_count, taker_buy_base_volume, taker_buy_quote_volume
+
+                extended_ohlcv.append(extended_kline)
+
+            print(f"抓取到 {len(extended_ohlcv)} 条最新数据")
+            return extended_ohlcv
 
         except Exception as e:
             print(f"抓取最新数据失败: {e}")

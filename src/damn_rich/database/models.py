@@ -2,9 +2,6 @@
 数据库模型定义
 """
 
-from datetime import datetime
-from typing import Optional
-
 from sqlalchemy import (
     BigInteger,
     Boolean,

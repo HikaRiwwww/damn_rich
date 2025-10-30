@@ -5,7 +5,6 @@
 """
 
 import asyncio
-import logging
 import signal
 from typing import Optional
 
