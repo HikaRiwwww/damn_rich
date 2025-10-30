@@ -178,9 +178,11 @@ jobs:
             export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
             export DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN"
             export DOCKER_IMAGE_TAG="$DOCKER_IMAGE_TAG"
+            export DOCKER_FRONTEND_IMAGE_TAG="$DOCKER_FRONTEND_IMAGE_TAG"
             
             echo "🚀 开始部署..."
-            echo "📦 镜像标签: \$DOCKER_IMAGE_TAG"
+            echo "📦 后端镜像标签: \$DOCKER_IMAGE_TAG"
+            echo "📦 前端镜像标签: \$DOCKER_FRONTEND_IMAGE_TAG"
             echo "👤 当前用户: \$(whoami)"
             echo "📁 当前目录: \$(pwd)"
             
