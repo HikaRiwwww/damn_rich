@@ -1,6 +1,12 @@
 'use client';
 
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { useEffect, useState } from 'react';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface KlineData {
   id: number;
@@ -32,15 +38,15 @@ interface Symbol {
 interface TimezoneOption {
   value: string;
   label: string;
-  offset: number;
+  tz: string; // IANA 时区标识符
 }
 
 const TIMEZONES: TimezoneOption[] = [
-  { value: 'UTC+8', label: '北京时间 (UTC+8)', offset: 8 },
-  { value: 'UTC+0', label: 'UTC (UTC+0)', offset: 0 },
-  { value: 'UTC-5', label: '美东时间 (UTC-5)', offset: -5 },
-  { value: 'UTC+1', label: '中欧时间 (UTC+1)', offset: 1 },
-  { value: 'UTC+9', label: '日本时间 (UTC+9)', offset: 9 },
+  { value: 'UTC+8', label: '北京时间 (UTC+8)', tz: 'Asia/Shanghai' },
+  { value: 'UTC+0', label: 'UTC (UTC+0)', tz: 'UTC' },
+  { value: 'UTC-5', label: '美东时间 (UTC-5)', tz: 'America/New_York' },
+  { value: 'UTC+1', label: '中欧时间 (UTC+1)', tz: 'Europe/Berlin' },
+  { value: 'UTC+9', label: '日本时间 (UTC+9)', tz: 'Asia/Tokyo' },
 ];
 
 export default function KlineDataTable() {
@@ -99,24 +105,14 @@ export default function KlineDataTable() {
   const formatDateTimeFromTimestamp = (timestamp: number, timezone: string): string => {
     try {
       const timezoneOption = TIMEZONES.find(tz => tz.value === timezone);
-      if (!timezoneOption) return new Date(timestamp).toISOString();
+      if (!timezoneOption) {
+        return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
+      }
 
-      // 时间戳是毫秒，转换为目标时区（加上偏移量）
-      const offsetMs = timezoneOption.offset * 60 * 60 * 1000;
-      const targetTimestamp = timestamp + offsetMs;
-      const targetDate = new Date(targetTimestamp);
-
-      // 格式化为 YYYY-MM-DD HH:mm:ss
-      const year = targetDate.getUTCFullYear();
-      const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getUTCDate()).padStart(2, '0');
-      const hours = String(targetDate.getUTCHours()).padStart(2, '0');
-      const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
-      const seconds = String(targetDate.getUTCSeconds()).padStart(2, '0');
-
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      // 使用 dayjs 将 UTC 时间戳转换为目标时区
+      return dayjs(timestamp).utc().tz(timezoneOption.tz).format('YYYY-MM-DD HH:mm:ss');
     } catch (error) {
-      return new Date(timestamp).toISOString();
+      return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
     }
   };
 
