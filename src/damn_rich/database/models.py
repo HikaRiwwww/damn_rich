@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -137,6 +138,59 @@ class KlineData(Base):
 
     def __repr__(self):
         return f"<KlineData(exchange_id={self.exchange_id}, symbol_id={self.symbol_id}, timeframe={self.timeframe}, datetime={self.datetime})>"
+
+
+class Strategy(Base):
+    """策略信息模型"""
+
+    __tablename__ = "strategies"
+
+    # 主键
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 策略基本信息
+    name = Column(String(100), nullable=False, unique=True, comment="策略类名（英文）")
+    name_cn = Column(String(100), nullable=True, comment="策略中文名称")
+    description = Column(Text, nullable=True, comment="策略描述")
+    file_path = Column(String(200), nullable=False, comment="策略文件路径")
+    class_name = Column(String(100), nullable=False, comment="策略类名")
+
+    # 策略状态
+    is_active = Column(Boolean, default=False, comment="是否激活")
+    is_enabled = Column(Boolean, default=False, comment="是否启用（可运行）")
+
+    # 策略配置（JSON格式存储）
+    config = Column(Text, nullable=True, comment="策略配置参数（JSON格式）")
+
+    # 元数据
+    version = Column(String(20), nullable=True, default="1.0.0", comment="策略版本")
+    author = Column(String(100), nullable=True, comment="策略作者")
+
+    # 时间戳
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="创建时间",
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+        comment="更新时间",
+    )
+
+    # 索引
+    __table_args__ = (
+        Index("idx_strategy_name", "name"),
+        Index("idx_strategy_active", "is_active"),
+        Index("idx_strategy_enabled", "is_enabled"),
+        Index("idx_strategy_class_name", "class_name"),
+    )
+
+    def __repr__(self):
+        return f"<Strategy(name={self.name}, name_cn={self.name_cn}, is_active={self.is_active}, is_enabled={self.is_enabled})>"
 
 
 class DatabaseManager:

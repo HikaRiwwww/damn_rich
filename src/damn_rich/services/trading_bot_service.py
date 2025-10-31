@@ -9,6 +9,7 @@ import signal
 from typing import Optional
 
 from damn_rich.database.models import DatabaseManager
+from damn_rich.services.strategy_manager import StrategyManager
 from damn_rich.utils.config import Config
 from damn_rich.utils.logger import get_logger
 
@@ -19,6 +20,7 @@ class TradingBotService:
     def __init__(self):
         """初始化交易执行服务"""
         self.database_manager: Optional[DatabaseManager] = None
+        self.strategy_manager: Optional[StrategyManager] = None
         self.is_running = False
         self.logger = get_logger("trading_bot")
 
@@ -33,7 +35,8 @@ class TradingBotService:
             # 初始化数据库管理器
             self.database_manager = DatabaseManager(Config.get_database_url())
             self.database_manager.create_tables()
-
+            self.strategy_manager = StrategyManager()
+            self.strategy_manager.initialize()
             self.logger.info("交易执行服务组件初始化完成")
             return True
 
