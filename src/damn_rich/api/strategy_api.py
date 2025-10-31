@@ -7,6 +7,7 @@ import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from damn_rich.api.dependencies import get_db, get_strategy_manager
@@ -17,6 +18,19 @@ from damn_rich.database.models import Strategy
 
 router = APIRouter(prefix="/api/strategy", tags=["strategy"])
 logger = APILogger("strategy_api")
+
+
+class StrategyStatusUpdate(BaseModel):
+    """策略状态更新请求模型"""
+
+    is_enabled: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class StrategyConfigUpdate(BaseModel):
+    """策略配置更新请求模型"""
+
+    config: dict
 
 
 @router.get("/list")
@@ -158,3 +172,100 @@ async def get_strategy_status_summary(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to fetch strategy status summary: {str(e)}")
         raise DatabaseException(f"获取策略状态摘要失败: {str(e)}")
+
+
+@router.patch("/{strategy_id}/status")
+async def update_strategy_status(
+    strategy_id: int,
+    status_update: StrategyStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    """更新策略状态（启用/禁用、激活/未激活）"""
+    try:
+        logger.info(
+            f"Updating strategy status: id={strategy_id}, update={status_update}"
+        )
+
+        strategy = db.query(Strategy).filter(Strategy.id == strategy_id).first()
+        if not strategy:
+            raise NotFoundException(f"策略 ID {strategy_id} 不存在")
+
+        # 更新状态字段
+        if status_update.is_enabled is not None:
+            strategy.is_enabled = status_update.is_enabled
+            logger.info(
+                f"Updated is_enabled to {status_update.is_enabled} for strategy {strategy.name}"
+            )
+
+        if status_update.is_active is not None:
+            strategy.is_active = status_update.is_active
+            logger.info(
+                f"Updated is_active to {status_update.is_active} for strategy {strategy.name}"
+            )
+
+        db.commit()
+        db.refresh(strategy)
+
+        # 构建响应数据
+        strategy_data = {
+            "id": strategy.id,
+            "name": strategy.name,
+            "is_active": strategy.is_active,
+            "is_enabled": strategy.is_enabled,
+            "updated_at": strategy.updated_at.isoformat()
+            if strategy.updated_at
+            else None,
+        }
+
+        logger.info(f"Successfully updated strategy status: {strategy.name}")
+        return create_success_response(data=strategy_data, message="策略状态更新成功")
+
+    except NotFoundException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update strategy status: {str(e)}")
+        db.rollback()
+        raise DatabaseException(f"更新策略状态失败: {str(e)}")
+
+
+@router.put("/{strategy_id}/config")
+async def update_strategy_config(
+    strategy_id: int,
+    config_update: StrategyConfigUpdate,
+    db: Session = Depends(get_db),
+):
+    """更新策略配置"""
+    try:
+        logger.info(f"Updating strategy config: id={strategy_id}")
+
+        strategy = db.query(Strategy).filter(Strategy.id == strategy_id).first()
+        if not strategy:
+            raise NotFoundException(f"策略 ID {strategy_id} 不存在")
+
+        # 更新配置（转换为JSON字符串）
+        strategy.config = json.dumps(config_update.config, ensure_ascii=False)
+        db.commit()
+        db.refresh(strategy)
+
+        # 构建响应数据
+        strategy_data = {
+            "id": strategy.id,
+            "name": strategy.name,
+            "config": json.loads(strategy.config) if strategy.config else None,
+            "updated_at": strategy.updated_at.isoformat()
+            if strategy.updated_at
+            else None,
+        }
+
+        logger.info(f"Successfully updated strategy config: {strategy.name}")
+        return create_success_response(data=strategy_data, message="策略配置更新成功")
+
+    except NotFoundException:
+        raise
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON config: {str(e)}")
+        raise DatabaseException(f"配置格式错误: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to update strategy config: {str(e)}")
+        db.rollback()
+        raise DatabaseException(f"更新策略配置失败: {str(e)}")

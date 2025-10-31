@@ -28,12 +28,132 @@ interface StrategySummary {
   inactive: number;
 }
 
+// 配置编辑模态框组件
+interface ConfigModalProps {
+  strategy: Strategy | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (config: Record<string, any>) => Promise<void>;
+}
+
+function ConfigModal({ strategy, isOpen, onClose, onSave }: ConfigModalProps) {
+  const [configText, setConfigText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (strategy && isOpen) {
+      setConfigText(JSON.stringify(strategy.config || {}, null, 2));
+      setError(null);
+    }
+  }, [strategy, isOpen]);
+
+  if (!isOpen || !strategy) return null;
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      const config = JSON.parse(configText);
+      await onSave(config);
+      onClose();
+    } catch (e) {
+      setError('配置格式错误：' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '20px',
+          borderRadius: '8px',
+          maxWidth: '600px',
+          width: '90%',
+          maxHeight: '80vh',
+          overflow: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ marginTop: 0 }}>编辑策略配置 - {strategy.name_cn || strategy.name}</h3>
+        {error && (
+          <div style={{ padding: '10px', background: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '10px' }}>
+            {error}
+          </div>
+        )}
+        <textarea
+          value={configText}
+          onChange={(e) => setConfigText(e.target.value)}
+          style={{
+            width: '100%',
+            height: '400px',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+          }}
+          placeholder="输入JSON配置..."
+        />
+        <div style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              padding: '8px 16px',
+              background: '#f5f5f5',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '8px 16px',
+              background: '#1890ff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? '保存中...' : '保存'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StrategyStatusTable() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [summary, setSummary] = useState<StrategySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null);
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
+  const [configModalStrategy, setConfigModalStrategy] = useState<Strategy | null>(null);
+  const [updating, setUpdating] = useState<Record<number, boolean>>({});
 
   // 获取策略列表
   useEffect(() => {
@@ -120,6 +240,66 @@ export default function StrategyStatusTable() {
     };
 
     fetchData();
+  };
+
+  // 更新策略状态
+  const updateStrategyStatus = async (strategyId: number, updates: { is_enabled?: boolean; is_active?: boolean }) => {
+    setUpdating(prev => ({ ...prev, [strategyId]: true }));
+    try {
+      const response = await fetch(`/api/strategy/${strategyId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        // 更新本地状态
+        setStrategies(prev => prev.map(s => 
+          s.id === strategyId 
+            ? { ...s, ...updates, updated_at: result.data.updated_at }
+            : s
+        ));
+        // 刷新摘要
+        refreshData();
+      } else {
+        alert('更新失败: ' + (result.message || '未知错误'));
+      }
+    } catch (error) {
+      console.error('更新策略状态失败:', error);
+      alert('更新失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setUpdating(prev => ({ ...prev, [strategyId]: false }));
+    }
+  };
+
+  // 更新策略配置
+  const updateStrategyConfig = async (config: Record<string, any>) => {
+    if (!configModalStrategy) return;
+    setUpdating(prev => ({ ...prev, [configModalStrategy.id]: true }));
+    try {
+      const response = await fetch(`/api/strategy/${configModalStrategy.id}/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        // 更新本地状态
+        setStrategies(prev => prev.map(s => 
+          s.id === configModalStrategy.id 
+            ? { ...s, config: result.data.config, updated_at: result.data.updated_at }
+            : s
+        ));
+        setConfigModalStrategy(null);
+      } else {
+        alert('更新配置失败: ' + (result.message || '未知错误'));
+      }
+    } catch (error) {
+      console.error('更新策略配置失败:', error);
+      alert('更新配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setUpdating(prev => ({ ...prev, [configModalStrategy.id]: false }));
+    }
   };
 
   const getStatusBadge = (isEnabled: boolean, isActive: boolean, isLoaded: boolean) => {
@@ -318,13 +498,16 @@ export default function StrategyStatusTable() {
                 <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>
                   更新时间
                 </th>
+                <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody>
               {strategies.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     style={{
                       padding: '20px',
                       textAlign: 'center',
@@ -335,52 +518,118 @@ export default function StrategyStatusTable() {
                   </td>
                 </tr>
               ) : (
-                strategies.map((strategy) => (
-                  <tr key={strategy.id}>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      <strong>{strategy.name}</strong>
-                    </td>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      {strategy.name_cn || '-'}
-                    </td>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      {getStatusBadge(
-                        strategy.is_enabled,
-                        strategy.is_active,
-                        strategy.is_loaded
-                      )}
-                    </td>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      {strategy.version || '-'}
-                    </td>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      {strategy.author || '-'}
-                    </td>
-                    <td
-                      style={{
-                        padding: '10px',
-                        border: '1px solid #ddd',
-                        maxWidth: '300px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={strategy.description || ''}
-                    >
-                      {strategy.description || '-'}
-                    </td>
-                    <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                      {strategy.updated_at
-                        ? new Date(strategy.updated_at).toLocaleString('zh-CN')
-                        : '-'}
-                    </td>
-                  </tr>
-                ))
+                strategies.map((strategy) => {
+                  const isUpdating = updating[strategy.id] || false;
+                  return (
+                    <tr key={strategy.id}>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        <strong>{strategy.name}</strong>
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        {strategy.name_cn || '-'}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        {getStatusBadge(
+                          strategy.is_enabled,
+                          strategy.is_active,
+                          strategy.is_loaded
+                        )}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        {strategy.version || '-'}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        {strategy.author || '-'}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px',
+                          border: '1px solid #ddd',
+                          maxWidth: '300px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={strategy.description || ''}
+                      >
+                        {strategy.description || '-'}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        {strategy.updated_at
+                          ? new Date(strategy.updated_at).toLocaleString('zh-CN')
+                          : '-'}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => updateStrategyStatus(strategy.id, { is_enabled: !strategy.is_enabled })}
+                            disabled={isUpdating}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              background: strategy.is_enabled ? '#ff4d4f' : '#52c41a',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: isUpdating ? 'not-allowed' : 'pointer',
+                              opacity: isUpdating ? 0.6 : 1,
+                            }}
+                            title={strategy.is_enabled ? '禁用' : '启用'}
+                          >
+                            {strategy.is_enabled ? '禁用' : '启用'}
+                          </button>
+                          <button
+                            onClick={() => updateStrategyStatus(strategy.id, { is_active: !strategy.is_active })}
+                            disabled={isUpdating}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              background: strategy.is_active ? '#faad14' : '#1890ff',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: isUpdating ? 'not-allowed' : 'pointer',
+                              opacity: isUpdating ? 0.6 : 1,
+                            }}
+                            title={strategy.is_active ? '取消激活' : '激活'}
+                          >
+                            {strategy.is_active ? '取消激活' : '激活'}
+                          </button>
+                          <button
+                            onClick={() => setConfigModalStrategy(strategy)}
+                            disabled={isUpdating}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              background: '#722ed1',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: isUpdating ? 'not-allowed' : 'pointer',
+                              opacity: isUpdating ? 0.6 : 1,
+                            }}
+                            title="编辑配置"
+                          >
+                            配置
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* 配置编辑模态框 */}
+      <ConfigModal
+        strategy={configModalStrategy}
+        isOpen={configModalStrategy !== null}
+        onClose={() => setConfigModalStrategy(null)}
+        onSave={updateStrategyConfig}
+      />
     </div>
   );
 }
