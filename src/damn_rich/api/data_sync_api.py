@@ -10,28 +10,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
+from damn_rich.api.dependencies import get_db
 from damn_rich.api.exceptions import DatabaseException, NotFoundException
 from damn_rich.api.logging_config import APILogger
 from damn_rich.api.response_model import create_success_response
-from damn_rich.database.models import DatabaseManager, Exchange, KlineData, Symbol
-from damn_rich.utils.config import Config
+from damn_rich.database.models import Exchange, KlineData, Symbol
 
 router = APIRouter(prefix="/api/data-sync", tags=["data-sync"])
 logger = APILogger("data_sync_api")
-
-
-def get_db():
-    """获取数据库会话"""
-    try:
-        database_manager = DatabaseManager(Config.get_database_url())
-        with database_manager.get_session() as session:
-            yield session
-    except Exception as e:
-        logger.error(f"Database connection failed: {str(e)}")
-        raise DatabaseException(f"数据库连接失败: {str(e)}")
-    finally:
-        if "database_manager" in locals():
-            database_manager.close()
 
 
 @router.get("/exchanges")

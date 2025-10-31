@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class StrategyManager:
-    """策略管理器
+    """策略管理器（单例模式）
 
     负责管理所有策略的加载、初始化、运行和停止
 
@@ -23,28 +23,46 @@ class StrategyManager:
 
     提供策略的配置、参数、状态等管理功能
 
+    使用单例模式，确保全局只有一个实例
     """
+
+    _instance: Optional["StrategyManager"] = None
+    _initialized: bool = False
+
+    def __new__(cls):
+        """单例模式：确保只创建一个实例"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
         """
         初始化策略管理器
 
-        Args:
-            database_manager: 数据库管理器实例
+        注意：由于单例模式，__init__ 可能会被多次调用，
+        因此使用 _initialized 标志确保只初始化一次
         """
-        self.database_manager = None
-        self.strategies: Dict[str, StrategyBase] = {}
-        self.strategy_dir = Path(__file__).parent.parent / "strategy"
+        if StrategyManager._initialized:
+            return
 
-    def initialize(self):
-        """
-        初始化策略管理器，扫描并加载所有策略
-        应该在设置好database_manager后调用
-        """
-        if not self.database_manager:
+        try:
             self.database_manager = DatabaseManager(Config.get_database_url())
-        self._load_strategies()
-        return True
+            self.strategies: Dict[str, StrategyBase] = {}
+            self.strategy_dir = Path(__file__).parent.parent / "strategy"
+            self._load_strategies()
+            StrategyManager._initialized = True
+            logger.info("策略管理器初始化完成")
+        except Exception as e:
+            logger.error(f"策略管理器初始化失败: {e}", exc_info=True)
+            # 重置标志，允许下次重试
+            StrategyManager._initialized = False
+            raise
+
+    def has_initialized(self) -> bool:
+        """
+        检查策略管理器是否已初始化
+        """
+        return StrategyManager._initialized
 
     def _load_strategies(self):
         """

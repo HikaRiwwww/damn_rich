@@ -35,8 +35,8 @@ class TradingBotService:
             # 初始化数据库管理器
             self.database_manager = DatabaseManager(Config.get_database_url())
             self.database_manager.create_tables()
+            # StrategyManager 是单例，创建时会自动初始化
             self.strategy_manager = StrategyManager()
-            self.strategy_manager.initialize()
             self.logger.info("交易执行服务组件初始化完成")
             return True
 

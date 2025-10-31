@@ -11,6 +11,10 @@ const nextConfig = {
         source: '/api/trading-bot/:path*',
         destination: 'http://api:8000/api/trading-bot/:path*',
       },
+      {
+        source: '/api/strategy/:path*',
+        destination: 'http://api:8000/api/strategy/:path*',
+      },
     ];
   },
 };

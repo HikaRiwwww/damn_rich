@@ -14,11 +14,11 @@ from damn_rich.api.exceptions import (
     APIException,
     api_exception_handler,
     general_exception_handler,
-    http_exception_handler,
     sqlalchemy_exception_handler,
     validation_exception_handler,
 )
 from damn_rich.api.logging_config import APILogger, setup_api_logging
+from damn_rich.api.strategy_api import router as strategy_router
 from damn_rich.api.trading_bot_api import router as trading_bot_router
 
 # 设置日志
@@ -52,6 +52,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 # 注册路由
 app.include_router(data_sync_router)
 app.include_router(trading_bot_router)
+app.include_router(strategy_router)
 
 
 @app.get("/")

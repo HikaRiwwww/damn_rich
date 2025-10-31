@@ -1,11 +1,12 @@
 'use client';
 
 import KlineDataTable from '@/components/KlineDataTable';
+import StrategyStatusTable from '@/components/StrategyStatusTable';
 import TradingRecordsTable from '@/components/TradingRecordsTable';
 import { useState } from 'react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'kline' | 'trades'>('kline');
+  const [activeTab, setActiveTab] = useState<'kline' | 'trades' | 'strategy'>('kline');
 
   return (
     <div style={{ padding: '20px' }}>
@@ -39,11 +40,25 @@ export default function Home() {
         >
           交易记录
         </button>
+        <button
+          onClick={() => setActiveTab('strategy')}
+          style={{
+            padding: '10px 20px',
+            marginRight: '10px',
+            border: 'none',
+            borderBottom: activeTab === 'strategy' ? '2px solid #0070f3' : 'none',
+            background: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          策略状态
+        </button>
       </div>
 
       {/* 内容区域 */}
       {activeTab === 'kline' && <KlineDataTable />}
       {activeTab === 'trades' && <TradingRecordsTable />}
+      {activeTab === 'strategy' && <StrategyStatusTable />}
     </div>
   );
 }
