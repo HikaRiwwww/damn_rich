@@ -129,7 +129,7 @@ services:
 
   # 前端服务
   frontend:
-    image: ${FRONTEND_IMAGE}
+    image: ${FRONTEND_IMAGE:-damn-rich/crypto-frontend:latest}
     container_name: crypto_frontend
     restart: always
     ports:
